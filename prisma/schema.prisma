@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Recipe {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  servings    Int          @default(1)
+  category    String?
+  tags        String[]
+  notes       String?
+  ingredients Ingredient[]
+  steps       Step[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Ingredient {
+  id          String  @id @default(cuid())
+  name        String
+  quantity    Float
+  unit        String
+  costPerUnit Float?
+  recipeId    String
+  recipe      Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+}
+
+model Step {
+  id          String @id @default(cuid())
+  order       Int
+  instruction String
+  recipeId    String
+  recipe      Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  role      String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+}
