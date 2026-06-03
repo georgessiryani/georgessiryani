@@ -4,6 +4,8 @@ import { tools } from "@/lib/tools";
 import { handleToolCall } from "@/lib/tool-handlers";
 import { prisma } from "@/lib/db";
 
+export const maxDuration = 60;
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SYSTEM_PROMPT = `You are a professional culinary assistant for a catering business. You help the owner manage recipes, develop new dishes, scale recipes for events, calculate costs, and grow the business.

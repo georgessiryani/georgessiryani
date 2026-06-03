@@ -48,7 +48,7 @@ export default function Home() {
         body: JSON.stringify({ message: content }),
       });
       const data = await res.json();
-      const reply = data.message ?? `Error: ${data.error ?? "Unknown error"}`;
+      const reply = data.message || data.error || "Something went wrong. Please try again.";
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } finally {
       setLoading(false);
