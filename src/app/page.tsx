@@ -48,7 +48,8 @@ export default function Home() {
         body: JSON.stringify({ message: content }),
       });
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "assistant", content: data.message }]);
+      const reply = data.message ?? `Error: ${data.error ?? "Unknown error"}`;
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } finally {
       setLoading(false);
       setTimeout(() => textareaRef.current?.focus(), 0);

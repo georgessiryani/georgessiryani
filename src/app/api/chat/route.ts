@@ -15,64 +15,66 @@ Your personality: knowledgeable, practical, and warm. You understand both the cu
 When creating or updating recipes, always confirm what you've saved. When scaling or calculating costs, show the numbers clearly.`;
 
 export async function POST(req: NextRequest) {
-  const { message } = await req.json();
+  try {
+    const { message } = await req.json();
 
-  // Save user message
-  await prisma.message.create({ data: { role: "user", content: message } });
+    await prisma.message.create({ data: { role: "user", content: message } });
 
-  // Load conversation history (last 40 messages for context)
-  const history = await prisma.message.findMany({
-    orderBy: { createdAt: "asc" },
-    take: 40,
-  });
+    const history = await prisma.message.findMany({
+      orderBy: { createdAt: "asc" },
+      take: 40,
+    });
 
-  const messages: Anthropic.MessageParam[] = history.map((m) => ({
-    role: m.role as "user" | "assistant",
-    content: m.content,
-  }));
+    const messages: Anthropic.MessageParam[] = history.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
 
-  // Agentic loop
-  let response = await anthropic.messages.create({
-    model: "claude-opus-4-8",
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    tools,
-    messages,
-  });
-
-  while (response.stop_reason === "tool_use") {
-    const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-    for (const block of toolUseBlocks) {
-      if (block.type !== "tool_use") continue;
-      const result = await handleToolCall(block.name, block.input as Record<string, unknown>);
-      toolResults.push({
-        type: "tool_result",
-        tool_use_id: block.id,
-        content: JSON.stringify(result),
-      });
-    }
-
-    messages.push({ role: "assistant", content: response.content });
-    messages.push({ role: "user", content: toolResults });
-
-    response = await anthropic.messages.create({
+    let response = await anthropic.messages.create({
       model: "claude-opus-4-8",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       tools,
       messages,
     });
+
+    while (response.stop_reason === "tool_use") {
+      const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+      for (const block of toolUseBlocks) {
+        if (block.type !== "tool_use") continue;
+        const result = await handleToolCall(block.name, block.input as Record<string, unknown>);
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: JSON.stringify(result),
+        });
+      }
+
+      messages.push({ role: "assistant", content: response.content });
+      messages.push({ role: "user", content: toolResults });
+
+      response = await anthropic.messages.create({
+        model: "claude-opus-4-8",
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        tools,
+        messages,
+      });
+    }
+
+    const textContent = response.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b as Anthropic.TextBlock).text)
+      .join("");
+
+    await prisma.message.create({ data: { role: "assistant", content: textContent } });
+
+    return Response.json({ message: textContent });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Chat API error:", message);
+    return Response.json({ error: message }, { status: 500 });
   }
-
-  const textContent = response.content
-    .filter((b) => b.type === "text")
-    .map((b) => (b as Anthropic.TextBlock).text)
-    .join("");
-
-  // Save assistant reply
-  await prisma.message.create({ data: { role: "assistant", content: textContent } });
-
-  return Response.json({ message: textContent });
 }
