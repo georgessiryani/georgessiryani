@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     await prisma.message.create({ data: { role: "user", content: message } });
 
     const history = await prisma.message.findMany({
+      where: { content: { not: "" } },
       orderBy: { createdAt: "asc" },
       take: 40,
     });
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
     }));
 
     let response = await anthropic.messages.create({
-      model: "claude-opus-4-8",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       tools,
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
       messages.push({ role: "user", content: toolResults });
 
       response = await anthropic.messages.create({
-        model: "claude-opus-4-8",
+        model: "claude-sonnet-4-6",
         max_tokens: 4096,
         system: SYSTEM_PROMPT,
         tools,
@@ -71,9 +72,11 @@ export async function POST(req: NextRequest) {
       .map((b) => (b as Anthropic.TextBlock).text)
       .join("");
 
-    await prisma.message.create({ data: { role: "assistant", content: textContent } });
+    if (textContent) {
+      await prisma.message.create({ data: { role: "assistant", content: textContent } });
+    }
 
-    return Response.json({ message: textContent });
+    return Response.json({ message: textContent || "I processed your request but had no text to return. Please try again." });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Chat API error:", message);

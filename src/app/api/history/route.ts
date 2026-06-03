@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 
 export async function GET() {
   const messages = await prisma.message.findMany({
+    where: { content: { not: "" } },
     orderBy: { createdAt: "asc" },
     take: 100,
   });
