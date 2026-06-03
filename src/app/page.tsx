@@ -47,9 +47,11 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: content }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       const reply = data.message || data.error || "Something went wrong. Please try again.";
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    } catch (e) {
+      setMessages((prev) => [...prev, { role: "assistant", content: `Network error: ${e instanceof Error ? e.message : "please try again"}` }]);
     } finally {
       setLoading(false);
       setTimeout(() => textareaRef.current?.focus(), 0);
